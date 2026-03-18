@@ -30,6 +30,18 @@ const traceSchema = new mongoose.Schema({
     type: Number,
     default: null,
   },
+  confidence: {
+    type: Number,
+    default: null,
+  },
+  scoringMethod: {
+    type: String,
+    default: null,
+  },
+  explanation: {
+    type: String,
+    default: null,
+  },
   alertTriggered: {
     type: Boolean,
     default: false,

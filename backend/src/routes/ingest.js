@@ -54,13 +54,15 @@ async function processScoreAsync(traceId, prompt, response) {
 
       const updateData = {
         hallucinationScore: data.hallucination_score,
+        confidence:         data.confidence,
+        scoringMethod:      data.method,
+        explanation:        data.explanation,
       };
 
-      // Simple alert threshold
+      // Alert threshold: score > 70
       if (data.hallucination_score > 70) {
         updateData.alertTriggered = true;
-        console.warn(`[ALERT] Hallucination detected for trace ${traceId}: Score ${data.hallucination_score}`);
-        // Here we would integrate Slack/Email alerting
+        console.warn(`[ALERT] Hallucination detected for trace ${traceId}: Score ${data.hallucination_score} (${data.method})`);
       }
 
       await Trace.findByIdAndUpdate(traceId, updateData);
