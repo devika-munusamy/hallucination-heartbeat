@@ -45,6 +45,11 @@ const traceSchema = new mongoose.Schema({
   alertTriggered: {
     type: Boolean,
     default: false,
+  },
+  status: {
+    type: String,
+    enum: ['open', 'resolved', 'ignored'],
+    default: 'open',
   }
 });
 
