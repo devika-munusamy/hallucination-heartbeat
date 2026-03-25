@@ -42,6 +42,11 @@ const traceSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  sentenceAnalysis: [{
+    text: String,
+    similarity: Number,
+    isHallucination: Boolean
+  }],
   alertTriggered: {
     type: Boolean,
     default: false,

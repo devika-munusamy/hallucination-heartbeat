@@ -5,14 +5,14 @@ const router = express.Router();
 
 router.post('/ingest', async (req, res) => {
   try {
-    const { prompt, response, model, tokenUsage, latency } = req.body;
+    const { prompt, response, context, model, tokenUsage, latency } = req.body;
 
     // 1. Save initial trace
-    const newTrace = new Trace({ prompt, response, model, tokenUsage, latency });
+    const newTrace = new Trace({ prompt, response, context, model, tokenUsage, latency });
     const savedTrace = await newTrace.save();
 
     // 2. Asynchronously call AI Service for hallucination score
-    processScoreAsync(savedTrace._id, prompt, response, model);
+    processScoreAsync(savedTrace._id, prompt, response, context, model);
 
     res.status(201).json({ success: true, traceId: savedTrace._id });
   } catch (error) {
@@ -44,14 +44,17 @@ router.patch('/traces/:id/status', async (req, res) => {
   }
 });
 
-async function processScoreAsync(traceId, prompt, response, model) {
+async function processScoreAsync(traceId, prompt, response, context, model) {
   try {
     const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+
+    const reqBody = { prompt, response };
+    if (context) reqBody.context = context;
 
     const aiRes = await fetch(`${aiServiceUrl}/api/v1/score`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, response }),
+      body: JSON.stringify(reqBody),
     });
 
     if (aiRes.ok) {
@@ -61,6 +64,7 @@ async function processScoreAsync(traceId, prompt, response, model) {
         confidence:         data.confidence,
         scoringMethod:      data.method,
         explanation:        data.explanation,
+        sentenceAnalysis:   data.sentence_analysis || [],
       };
 
       if (data.hallucination_score > 70) {

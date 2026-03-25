@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer, util
 import logging
 import numpy as np
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ class ScoreResponse(BaseModel):
     confidence: float
     explanation: str
     method: str
+    sentence_analysis: list[dict] | None = None
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -57,20 +59,51 @@ def detect_prompt_injection(prompt: str) -> float:
 
 def score_with_context(prompt: str, response: str, context: str) -> dict:
     """
-    RAG-style: compare response embedding to the provided context embedding.
+    RAG-style: compare each response sentence embedding to the provided context embedding.
     Low similarity → low grounding → high hallucination risk.
     """
     ctx_emb  = model.encode(context,  convert_to_tensor=True)
     resp_emb = model.encode(response, convert_to_tensor=True)
-    similarity = cosine_similarity(ctx_emb, resp_emb)
+    overall_sim = cosine_similarity(ctx_emb, resp_emb)
+    
+    # Split response into sentences using Regex (matches punctuation followed by space)
+    raw_sentences = re.split(r'(?<=[.!?])\s+', response.strip())
+    sentences = [s.strip() for s in raw_sentences if len(s.strip()) > 3]
+    
+    sentence_analysis = []
+    if sentences:
+        sent_embs = model.encode(sentences, convert_to_tensor=True)
+        # Compute cosine similarity for each sentence vs the context
+        sent_sims = util.cos_sim(sent_embs, ctx_emb).squeeze(-1).tolist()
+        
+        # Handle scalar if only 1 sentence
+        if isinstance(sent_sims, float):
+            sent_sims = [sent_sims]
+            
+        for sent, sim in zip(sentences, sent_sims):
+            # Below 25% similarity marks a single sentence as severely ungrounded (hallucination)
+            is_halluc = float(sim) < 0.25
+            sentence_analysis.append({
+                "text": sent,
+                "similarity": round(float(sim), 2),
+                "is_hallucination": is_halluc
+            })
+    else:
+        sentence_analysis.append({
+             "text": response,
+             "similarity": round(float(overall_sim), 2),
+             "is_hallucination": float(overall_sim) < 0.25
+        })
+
     # Invert: similarity 1.0 = fully grounded = score 0; similarity 0.0 = hallucinated = score 100
-    base = int((1.0 - similarity) * 100)
+    base = int((1.0 - overall_sim) * 100)
     return {
         "score":  base,
-        "method": "rag-cosine-similarity",
-        "explanation": f"Response vs. provided context — cosine similarity: {similarity:.2f}. "
+        "method": "rag-sentence-similarity",
+        "explanation": f"Response vs. provided context — overall similarity: {overall_sim:.2f}. "
                        + ("High contextual grounding." if base < 40 else "Low contextual grounding detected."),
-        "confidence": round(0.70 + similarity * 0.25, 2),
+        "confidence": round(0.70 + float(overall_sim) * 0.25, 2),
+        "sentence_analysis": sentence_analysis
     }
 
 def score_with_self_reflection(prompt: str, response: str) -> dict:
@@ -137,6 +170,7 @@ def compute_hallucination_score(trace: TraceInput):
             confidence=result["confidence"],
             explanation=result["explanation"],
             method=result["method"],
+            sentence_analysis=result.get("sentence_analysis")
         )
 
     except Exception as e:

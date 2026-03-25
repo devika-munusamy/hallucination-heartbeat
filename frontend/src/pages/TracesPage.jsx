@@ -168,21 +168,58 @@ export default function TracesPage() {
                 <div className="glass p-4 rounded-xl border-white/5">
                   <div className="flex items-center justify-between mb-3">
                     <RiskBadge score={selectedTrace.hallucinationScore} />
-                    <span className="text-[10px] text-slate-500 font-mono">detection: cosine-similarity</span>
+                    <span className="text-[10px] text-slate-500 font-mono text-right">
+                      {selectedTrace.scoringMethod || 'cosine-similarity'}<br/>
+                      <span className="text-[9px] text-slate-600 flex items-center justify-end gap-1 mt-1">
+                        CONFIDENCE: {(selectedTrace.confidence || 0.9).toFixed(2)}
+                      </span>
+                    </span>
                   </div>
-                  <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden mb-3">
                     <div className={`h-full rounded-full transition-all ${selectedTrace.hallucinationScore > 70 ? 'bg-red-500' : selectedTrace.hallucinationScore > 40 ? 'bg-yellow-500' : 'bg-emerald-500'}`}
                       style={{ width: `${selectedTrace.hallucinationScore}%` }} />
                   </div>
+                  {selectedTrace.explanation && (
+                    <p className="text-xs text-slate-400 bg-slate-900/50 p-2 text-center rounded border border-white/5">
+                      {selectedTrace.explanation}
+                    </p>
+                  )}
                 </div>
               </div>
+              
               <div>
                 <p className="text-[10px] text-slate-600 uppercase tracking-widest font-bold mb-2">Prompt</p>
-                <div className="glass p-4 rounded-xl border-white/5 text-sm text-blue-300 italic">{selectedTrace.prompt}</div>
+                <div className="glass p-4 rounded-xl border-white/5 text-sm text-blue-300 italic">
+                  {selectedTrace.prompt}
+                </div>
               </div>
+              
+              {selectedTrace.context && (
+                <div>
+                  <p className="text-[10px] text-slate-600 uppercase tracking-widest font-bold mb-2">Grounding Context (Reference)</p>
+                  <div className="glass p-4 rounded-xl border-white/5 text-sm text-slate-400 italic bg-slate-900/40">
+                    {selectedTrace.context}
+                  </div>
+                </div>
+              )}
+              
               <div>
-                <p className="text-[10px] text-slate-600 uppercase tracking-widest font-bold mb-2">LLM Response</p>
-                <div className="glass p-4 rounded-xl border-white/5 text-sm text-slate-300">{selectedTrace.response}</div>
+                <p className="text-[10px] text-slate-600 uppercase tracking-widest font-bold mb-2">LLM Response (Sentence Analysis)</p>
+                <div className="glass p-4 rounded-xl border-white/5 text-sm text-slate-300 leading-relaxed">
+                  {selectedTrace.sentenceAnalysis && selectedTrace.sentenceAnalysis.length > 0 ? (
+                    selectedTrace.sentenceAnalysis.map((s, i) => (
+                      <span key={i} className={`mr-1 px-1 rounded transition-colors cursor-help ${
+                        s.isHallucination 
+                          ? 'bg-red-500/20 text-red-200 border-b border-red-500/40' 
+                          : 'bg-emerald-500/10 text-emerald-200 border-b border-emerald-500/20'
+                      }`} title={`Similarity: ${Math.round(s.similarity * 100)}%`}>
+                        {s.text}
+                      </span>
+                    ))
+                  ) : (
+                    selectedTrace.response
+                  )}
+                </div>
               </div>
               {selectedTrace.alertTriggered && (
                 <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl">
