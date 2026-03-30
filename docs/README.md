@@ -20,7 +20,7 @@ bash run_all.sh
 ```
 
 ### 3. Access the Studio
-- **Observability Studio:** [http://localhost:5060](http://localhost:5060)
+- **Observability Studio:** [http://localhost:5174](http://localhost:5174)
 - **Backend API:** [http://localhost:3001](http://localhost:3001)
 - **AI Scoring Engine:** [http://localhost:8000](http://localhost:8000)
 
